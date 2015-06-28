@@ -6,93 +6,103 @@ import fileinput
 import random
 import time
 import string
+import traceback
 
 class ConsoleSimulator:
 
-	def __init__(self1, str):
-		self1.s = str
-	def show(self1):
-		print(self1.s)
-	def showMsg (self, msg):
-		print (msg + ':', self.show())
+	def __init__(self):
+		self.processStates = []
+		self.minTimePerLine = 200
+		self.maxTimePerLine = 300
+		self.prefix = "starting"
+		self.suffix = "finishing"
+		self.preambleFile = "PreambleFile.txt"
+		self.dataFile = "DataFile.txt"
+		self.loopFileCount = 1
 
 
-def fixLine(text):
-	s = ""
-	for c in text:
-		if c == '#':
-			s += random.SystemRandom().choice(string.digits)
+	def fixLine(self, text):
+		s = ""
+		for c in text:
+			if c == '#':
+				s += random.SystemRandom().choice(string.digits)
+			else:
+				s += c
+		return s
+
+	def writeProgressPause(self, progressIndicator, sleep):
+		if progressIndicator > 0:
+			sleepGap = sleep / progressIndicator
+			for i in range(0, progressIndicator):
+				self.write(".")
+				time.sleep(sleepGap / 1000.0)
 		else:
-			s += c
-	return s
-
-def writeProgressPause(progressIndicator, sleep):
-	if progressIndicator > 0:
-		sleepGap = sleep / progressIndicator
-		for i in range(0, progressIndicator):
-			write(".")
-			time.sleep(sleepGap / 1000.0)
-	else:
-		time.sleep(sleep / 1000.0)
+			time.sleep(sleep / 1000.0)
 
 
-def write( line = ''):
-	print (line, end='')
-	sys.stdout.flush()
+	def write(self, line = ''):
+		print (line, end='')
+		sys.stdout.flush()
 
-def writeLine(line = ''):
-	print (line)
+	def writeLine(self, line = ''):
+		print (line)
 
-# have these set on class later    
-config = json.load(open('consolesim.config')) 
-processStates = config['ProcessingLineSuffix'].split(",")
-minTimePerLine = config['MinTimePerLine']
-maxTimePerLine = config['MaxTimePerLine']
-prefix = config['ProgramPrefix']
-suffix = config['ProgramSuffix']
-loopFileCount = config['LoopFileCount']
 
-def processFile(filename, writeInitialPrefix):
+	def processFile(self, filename, writeInitialPrefix):
 
-	if writeInitialPrefix:
-		writeProgressPause(5, minTimePerLine)
+		if writeInitialPrefix:
+			self.writeProgressPause(5, self.minTimePerLine)
 	
-	write()
+		self.write()
 	
-	for line in fileinput.input(filename):
-		line = line.rstrip()
-		sleepTimePerLine = random.SystemRandom().choice(range(minTimePerLine, maxTimePerLine))
-		if len(line) == 0:
-			writeLine()
-		elif line.startswith('*'):
-			writeLine(line[1:])
-			writeProgressPause(0, sleepTimePerLine)
-		else:
+		for line in fileinput.input(filename):
+			line = line.rstrip()
+			sleepTimePerLine = random.SystemRandom().choice(range(self.minTimePerLine, self.maxTimePerLine))
+			if len(line) == 0:
+				self.writeLine()
+			elif line.startswith('*'):
+				self.writeLine(line[1:])
+				self.writeProgressPause(0, sleepTimePerLine)
+			else:
 			
-			sleepTimePerLineSegment = sleepTimePerLine / len(processStates)
-			write(fixLine(line))
+				sleepTimePerLineSegment = sleepTimePerLine / len(self.processStates)
+				self.write(self.fixLine(line))
 		
-			for state in processStates:
-				writeProgressPause(5, sleepTimePerLineSegment)
-				write(fixLine(state))
+				for state in self.processStates:
+					self.writeProgressPause(5, sleepTimePerLineSegment)
+					self.write(self.fixLine(state))
 			
-			writeLine(" (" + str(sleepTimePerLine) + "ms)")
+				self.writeLine(" (" + str(sleepTimePerLine) + "ms)")
 	
-		writeLine()
+			self.writeLine()
+
+	def run(self):
+		self.writeLine(self.prefix)
+
+		self.processFile(self.preambleFile, False)
+
+		for i in range(0, self.loopFileCount):
+			self.processFile(self.dataFile, True)
+	
+
+		self.writeLine(self.suffix)
 
 try:
-	writeLine(prefix)
+	config = json.load(open('consolesim.config')) 
 
-	processFile(config['PreambleFile'], False)
-
-	for i in range(0, loopFileCount):
-		processFile(config['DataFile'], True)
+	cs = ConsoleSimulator()
+	cs.processStates = config['ProcessingLineSuffix'].split(",")
+	cs.minTimePerLine = config['MinTimePerLine']
+	cs.maxTimePerLine = config['MaxTimePerLine']
+	cs.prefix = config['ProgramPrefix']
+	cs.suffix = config['ProgramSuffix']
+	cs.loopFileCount = config['LoopFileCount']
+	cs.preambleFile = config['PreambleFile']
+	cs.dataFile = config['DataFile']
+	cs.run()
 	
-
-	writeLine(suffix)
 except KeyboardInterrupt:
 	writeLine("Shutdown requested...exiting")
 except Exception:
 	traceback.print_exc(file=sys.stdout)
 sys.exit(0)
-
