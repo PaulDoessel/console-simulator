@@ -7,6 +7,8 @@ import random
 import time
 import string
 import traceback
+import os
+
 
 class ConsoleSimulator:
 
@@ -87,8 +89,13 @@ class ConsoleSimulator:
 
 		self.writeLine(self.suffix)
 
+
+os.chdir(os.path.dirname(os.path.abspath(sys.argv[0])))
+
+print(os.getcwd())
+
 try:
-	config = json.load(open('consolesim.config')) 
+	config = json.load(open('./consolesim.config')) 
 
 	cs = ConsoleSimulator()
 	cs.processStates = config['ProcessingLineSuffix'].split(",")
